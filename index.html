@@ -1,0 +1,992 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Muhasabah Mirror: a Creed-to-Commerce journaling app for self-accounting beside the scholars of Ahlus Sunnah.">
+<meta name="theme-color" content="#173527">
+<title>Muhasabah Mirror</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Amiri:wght@400;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+/* Layout concept: a ledger book. Dark green spine header, stone-coloured pages ruled with a brown top line, and an edit dock that stays at the foot of every view. */
+:root{
+  --bg:#E6EAE2; --surface:#F4F3EC; --surface-2:#E9E7DB; --ink:#2B1D12; --ink-soft:#66523F;
+  --line:#C9C4B3; --primary:#1F4A33; --on-primary:#F3F0E6; --accent:#1F4A33; --brown:#6B4426;
+  --gold:#8A6414; --band:#173527; --band-ink:#EDE6D8; --band-soft:#B9C6B8; --band-line:#2F5340;
+  --good:#2F6B3F; --mid:#8F5A0C; --low:#9B3A2A; --m1:#2F6B4A; --m2:#8A5A34; --m3:#B08A2E; --m4:#3E7F72; --m5:#7A6A58;
+  --display:'Amiri','Times New Roman',serif; --body:'Alegreya Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111B15; --surface:#1A2820; --surface-2:#22332A; --ink:#EDE6D8; --ink-soft:#B6AB95;
+  --line:#34493C; --primary:#2E6A49; --on-primary:#F3F0E6; --accent:#8CC4A1; --brown:#C79A6B;
+  --gold:#D4AE5A; --band:#0C1812; --band-ink:#EDE6D8; --band-soft:#9DB1A0; --band-line:#264034;
+  --good:#7FC08F; --mid:#E0A94F; --low:#E58A76; --m1:#6FB28C; --m2:#C79A6B; --m3:#D9B65C; --m4:#6FB5A6; --m5:#B3A58F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111B15; --surface:#1A2820; --surface-2:#22332A; --ink:#EDE6D8; --ink-soft:#B6AB95;
+  --line:#34493C; --primary:#2E6A49; --on-primary:#F3F0E6; --accent:#8CC4A1; --brown:#C79A6B;
+  --gold:#D4AE5A; --band:#0C1812; --band-ink:#EDE6D8; --band-soft:#9DB1A0; --band-line:#264034;
+  --good:#7FC08F; --mid:#E0A94F; --low:#E58A76; --m1:#6FB28C; --m2:#C79A6B; --m3:#D9B65C; --m4:#6FB5A6; --m5:#B3A58F; color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 var(--body);padding-bottom:84px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--band);z-index:10}
+.in{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);line-height:1.2;margin:0;text-wrap:balance}
+h2{font-size:1.7rem;color:var(--brown)} h3{font-size:1.25rem}
+p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.soft{color:var(--ink-soft)} .small{font-size:.9rem}
+
+/* header */
+.band{background:var(--band);color:var(--band-ink)}
+.hero .in{padding-block:28px 26px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px;align-items:end}
+.basmala{font-family:var(--display);font-size:1.6rem;color:var(--gold);margin-bottom:6px;direction:rtl;text-align:left}
+.hero h1{font-size:clamp(2.2rem,6vw,3.4rem);color:var(--band-ink)}
+.hero .sub{color:var(--band-soft);margin-top:8px;max-width:52ch}
+.umar{border-left:3px solid var(--gold);padding:2px 0 2px 14px;font-family:var(--display);font-size:1.2rem;color:var(--band-ink)}
+.umar span{display:block;font:500 .85rem var(--body);color:var(--band-soft);margin-top:4px;letter-spacing:.02em}
+@media (max-width:760px){.hero .in{grid-template-columns:1fr}}
+
+/* nav */
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;border-top:1px solid var(--band-line);border-bottom:1px solid var(--band-line)}
+.nav .in{display:flex;gap:2px;overflow-x:auto}
+.tab{background:none;border:0;border-bottom:3px solid transparent;color:var(--band-soft);padding:13px 14px 10px;cursor:pointer;font-weight:700;font-size:.86rem;letter-spacing:.09em;text-transform:uppercase;white-space:nowrap}
+.tab:hover{color:var(--band-ink)}
+.tab[aria-selected="true"]{color:var(--band-ink);border-bottom-color:var(--gold)}
+
+main.in{padding-block:24px 36px;display:block}
+.view{display:flex;flex-direction:column;gap:20px}
+.view-head{display:flex;flex-wrap:wrap;gap:12px;align-items:end;justify-content:space-between}
+.view-head p{max-width:62ch}
+
+/* pages */
+.page{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--brown);padding:18px 20px;min-width:0}
+.page > h3{margin-bottom:4px}
+.page > .cap{color:var(--ink-soft);font-size:.92rem;margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:20px}
+.stack{display:flex;flex-direction:column;gap:20px;min-width:0}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;background:var(--primary);color:var(--on-primary);border:1px solid var(--primary);padding:9px 15px;cursor:pointer;font-weight:700;font-size:.95rem;border-radius:3px}
+.btn:hover{filter:brightness(1.12)}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.btn.ghost{background:transparent;color:var(--accent);border-color:var(--accent)}
+.btn.brown{background:var(--brown);border-color:var(--brown);color:#fff}
+:root[data-theme="dark"] .btn.brown{color:#1a1208}
+.btn.danger{background:transparent;color:var(--low);border-color:var(--low)}
+.btn.danger.armed{background:var(--low);color:#fff}
+.btn.sm{padding:5px 10px;font-size:.86rem}
+.btn svg,.ic{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+/* seg */
+.seg{display:inline-flex;border:1px solid var(--line);background:var(--surface)}
+.seg button{background:none;border:0;padding:7px 13px;cursor:pointer;font-weight:700;font-size:.9rem;color:var(--ink-soft)}
+.seg button[aria-pressed="true"]{background:var(--primary);color:var(--on-primary)}
+
+/* stat strip */
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0;border:1px solid var(--line);background:var(--surface);border-top:3px solid var(--brown)}
+.strip > div{padding:14px 16px;border-right:1px solid var(--line)}
+.strip > div:last-child{border-right:0}
+.strip b{display:block;font:700 2.1rem/1.1 var(--display);color:var(--accent);font-variant-numeric:tabular-nums}
+.strip span{font-size:.84rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700}
+
+/* bars */
+.bars{display:flex;flex-direction:column;gap:11px}
+.brow{display:grid;grid-template-columns:minmax(96px,150px) 1fr 3.4em;gap:10px;align-items:center;font-size:.95rem}
+.brow .lab{min-width:0}
+.brow .lab small{display:block;color:var(--ink-soft);font-size:.78rem}
+.brow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.bar{position:relative;height:12px;background:var(--surface-2);border:1px solid var(--line)}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--gold)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.84rem;color:var(--ink-soft);margin-top:10px}
+.legend u{display:inline-block;width:2px;height:12px;background:var(--gold);vertical-align:-2px;margin-right:5px}
+
+/* svg charts */
+.chart{width:100%;height:auto;display:block;max-height:430px}
+.chart text{font-family:var(--body);fill:var(--ink)}
+.chart .dim{fill:var(--ink-soft)}
+.rg,.ax{fill:none;stroke:var(--line)}
+.rv{fill:var(--accent);fill-opacity:.2;stroke:var(--accent);stroke-width:2}
+.rt{fill:none;stroke:var(--gold);stroke-width:1.6;stroke-dasharray:5 4}
+.dot{fill:var(--accent)} .dot.hollow{fill:var(--surface);stroke:var(--ink-soft);stroke-width:1.5}
+.tl{fill:none;stroke:var(--accent);stroke-width:2.4;stroke-linejoin:round}
+.ta{fill:var(--accent);fill-opacity:.12}
+.tp{fill:var(--surface);stroke:var(--accent);stroke-width:2}
+.tp.last{fill:var(--gold);stroke:var(--gold)}
+
+/* weekly bars */
+.wk{display:flex;align-items:flex-end;gap:10px;height:170px;position:relative;border-bottom:1px solid var(--ink-soft);padding-top:18px}
+.wk .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
+.wk .col i{display:block;width:100%;max-width:46px;background:var(--m2)}
+.wk .col span{font-size:.78rem;font-variant-numeric:tabular-nums;font-weight:700;margin-bottom:3px}
+.wk .lim{position:absolute;left:0;right:0;border-top:2px dashed var(--gold);height:0}
+.wk-lab{display:flex;gap:10px;font-size:.78rem;color:var(--ink-soft);margin-top:5px}
+.wk-lab span{flex:1;text-align:center;min-width:0}
+
+/* chips + tone */
+.chip{display:inline-block;border:1px solid var(--line);padding:1px 9px;font-size:.8rem;font-weight:700;letter-spacing:.04em;background:var(--surface-2);color:var(--ink)}
+.chip.ex{border-style:dashed;color:var(--ink-soft);background:transparent}
+.tone{display:inline-block;border:1px solid currentColor;padding:1px 9px;font-size:.82rem;font-weight:700;font-variant-numeric:tabular-nums}
+.tone.good{color:var(--good)} .tone.mid{color:var(--mid)} .tone.low{color:var(--low)}
+
+/* forms */
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field.full{grid-column:1/-1}
+label.l,.legend-l{font-weight:700;font-size:.9rem;letter-spacing:.03em}
+input[type=text],input[type=date],input[type=number],input[type=search],select,textarea{width:100%;background:var(--surface);border:1px solid var(--line);padding:9px 11px;border-radius:3px;min-width:0}
+textarea{min-height:92px;resize:vertical}
+input[type=range]{width:100%;accent-color:var(--accent)}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+.slider{display:grid;grid-template-columns:minmax(0,1fr) 3em;gap:2px 10px;align-items:center;padding:8px 0;border-bottom:1px dotted var(--line)}
+.slider .q{grid-column:1/-1;font-size:.86rem;color:var(--ink-soft)}
+.slider .n b{font-family:var(--display);font-size:1.1rem}
+.slider output{font:700 1.3rem var(--display);text-align:right;color:var(--accent);font-variant-numeric:tabular-nums}
+.live{display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--surface-2);padding:10px 14px;border:1px solid var(--line)}
+.live b{font:700 2.2rem/1 var(--display);color:var(--accent);font-variant-numeric:tabular-nums}
+.mirror{background:var(--surface-2);border:1px solid var(--line);border-left:4px solid var(--gold);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.verse{font-family:var(--display);font-size:1.18rem;line-height:1.45}
+.verse small{display:block;font:500 .84rem var(--body);color:var(--ink-soft);margin-top:3px}
+.checks{display:flex;flex-direction:column;gap:12px}
+.checks .seg{display:flex}
+.checks .seg label{flex:1;position:relative;text-align:center;padding:7px 4px;cursor:pointer;font-size:.86rem;font-weight:700;color:var(--ink-soft)}
+.checks .seg input{position:absolute;opacity:0;pointer-events:none}
+.checks .seg label:has(input:checked){background:var(--primary);color:var(--on-primary)}
+.checks .seg label:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:-2px}
+.edit-banner{background:var(--gold);color:#1a1208;padding:9px 14px;font-weight:700;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+:root[data-theme="dark"] .edit-banner{color:#1a1208}
+
+/* journal */
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:10px}
+.entries{display:flex;flex-direction:column;gap:14px}
+.entry{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--brown);padding:14px 18px;display:flex;flex-direction:column;gap:9px;min-width:0}
+.entry.good{border-left-color:var(--good)} .entry.low{border-left-color:var(--low)} .entry.mid{border-left-color:var(--gold)}
+.e-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.e-head .date{color:var(--ink-soft);font-size:.9rem;margin-left:auto}
+.entry h3{font-size:1.35rem}
+.entry .story{white-space:pre-wrap;overflow-wrap:anywhere}
+.mini{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.mini div{font-size:.76rem;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.mini .bar{height:8px;margin-top:3px}
+.mini .bar i{background:var(--m1)}
+.mini div:nth-child(2) .bar i{background:var(--m2)} .mini div:nth-child(3) .bar i{background:var(--m3)} .mini div:nth-child(4) .bar i{background:var(--m4)} .mini div:nth-child(5) .bar i{background:var(--m5)}
+.act-line{border-top:1px dotted var(--line);padding-top:8px;font-size:.95rem}
+.acts{display:flex;flex-wrap:wrap;gap:8px;border-top:1px solid var(--line);padding-top:10px}
+.empty{padding:34px 20px;text-align:left;border:1px dashed var(--ink-soft);color:var(--ink-soft)}
+
+/* mirror view */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{background:var(--surface);border:1px solid var(--line);padding:6px 12px;cursor:pointer;font-weight:700;font-size:.9rem;border-radius:3px}
+.chips button[aria-pressed="true"]{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.lens{border-top:1px solid var(--line);padding-top:12px;display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr);gap:6px 20px}
+.lens h4{margin:0;font:700 1.15rem var(--display);color:var(--brown)}
+.lens h4 small{display:block;font:500 .82rem var(--body);color:var(--ink-soft)}
+@media (max-width:640px){.lens{grid-template-columns:1fr}}
+.qlist{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:5px}
+
+footer.foot{border-top:1px solid var(--line);margin-top:8px;padding-block:20px;color:var(--ink-soft);font-size:.9rem}
+.foot b{font-family:var(--display);font-size:1.1rem;color:var(--brown)}
+
+/* dock */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--band);border-top:2px solid var(--gold);padding-bottom:env(safe-area-inset-bottom,0px)}
+.dock .in{display:flex;gap:8px;padding-block:9px;overflow-x:auto;align-items:center}
+.dock .btn{background:transparent;border-color:var(--band-line);color:var(--band-ink);padding:7px 12px;font-size:.88rem;white-space:nowrap}
+.dock .btn.main{background:var(--gold);border-color:var(--gold);color:#1a1208}
+.dock .btn:disabled{opacity:.35}
+.dock .sp{flex:1}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;z-index:20;display:flex;gap:14px;align-items:center;max-width:min(92vw,520px);box-shadow:0 6px 24px rgba(0,0,0,.35)}
+#toast button{background:none;border:0;color:var(--gold);font-weight:700;cursor:pointer;text-decoration:underline}
+@media (prefers-reduced-motion:no-preference){#toast{animation:up .18s ease-out}@keyframes up{from{opacity:0;transform:translate(-50%,8px)}}}
+@media (max-width:520px){.brow{grid-template-columns:96px 1fr 3em}.page{padding:16px 14px}}
+</style>
+
+</head>
+<body>
+<header class="band hero">
+  <div class="in">
+    <div>
+      <p class="basmala" lang="ar" dir="rtl">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
+      <h1>Muhasabah Mirror</h1>
+      <p class="sub">A Creed-to-Commerce™ journal for self-accounting. Record real events from your week and measure them beside the example of Ahlus Sunnah's scholars, from Ibn Kathir to Shaykh Ibn Uthaymeen.</p>
+    </div>
+    <blockquote class="umar" style="margin:0">“Take account of yourselves before you are taken to account.”<span>'Umar ibn al-Khattab (may Allah be pleased with him), reported by at-Tirmidhi</span></blockquote>
+  </div>
+</header>
+
+<nav class="nav band" aria-label="Sections">
+  <div class="in" role="tablist">
+    <button class="tab" role="tab" id="t-dash" data-tab="dash" aria-selected="true">Dashboard</button>
+    <button class="tab" role="tab" id="t-reflect" data-tab="reflect" aria-selected="false">Reflect</button>
+    <button class="tab" role="tab" id="t-journal" data-tab="journal" aria-selected="false">Journal</button>
+    <button class="tab" role="tab" id="t-mirror" data-tab="mirror" aria-selected="false">Scholar Mirror</button>
+    <button class="tab" role="tab" id="t-reports" data-tab="reports" aria-selected="false">Reports &amp; Data</button>
+  </div>
+</nav>
+
+<main class="in">
+  <!-- DASHBOARD -->
+  <section class="view" id="view-dash" aria-labelledby="t-dash">
+    <div class="view-head">
+      <div><h2>Where you stand</h2><p class="soft">Scores come from your own ratings. They show direction, not a verdict. Only Allah knows the hearts.</p></div>
+      <div class="seg" id="period-seg" role="group" aria-label="Period">
+        <button data-period="7" aria-pressed="false">7 days</button>
+        <button data-period="30" aria-pressed="true">30 days</button>
+        <button data-period="90" aria-pressed="false">90 days</button>
+        <button data-period="all" aria-pressed="false">All</button>
+      </div>
+    </div>
+    <div id="dash-body" class="view"></div>
+  </section>
+
+  <!-- REFLECT -->
+  <section class="view" id="view-reflect" hidden aria-labelledby="t-reflect">
+    <div class="view-head"><div><h2 id="form-title">New reflection</h2><p class="soft">Describe one real event, rate how you acted, then hold it up to a scholar's example.</p></div></div>
+    <div id="edit-banner" class="edit-banner" hidden><span id="edit-banner-t">Editing a saved reflection</span><button class="btn ghost sm" id="btn-cancel-edit" style="color:#1a1208;border-color:#1a1208">Cancel editing</button></div>
+    <form id="entry-form" class="stack" autocomplete="off">
+      <div class="page">
+        <h3>1. The event</h3>
+        <div class="form" style="margin-top:12px">
+          <div class="field"><label class="l" for="f-date">Date</label><input type="date" id="f-date" required></div>
+          <div class="field"><label class="l" for="f-domain">Area of life</label><select id="f-domain"></select></div>
+          <div class="field"><label class="l" for="f-layer">Creed-to-Commerce™ layer</label><select id="f-layer"></select></div>
+          <div class="field full"><label class="l" for="f-title">Short title</label><input type="text" id="f-title" maxlength="120" placeholder="e.g. Declined a rushed sale that hid a defect" required></div>
+          <div class="field full"><label class="l" for="f-story">What happened?</label><textarea id="f-story" placeholder="Facts first: where you were, who was there, what you were tempted to do."></textarea></div>
+          <div class="field full"><label class="l" for="f-feel">What did you feel, and how did you respond?</label><textarea id="f-feel" placeholder="Name the feeling, then the choice you made."></textarea></div>
+        </div>
+      </div>
+
+      <div class="page">
+        <h3>2. Measure your behavior</h3>
+        <p class="cap">Slide from 1 (far from the ideal) to 10 (close to it). Be strict with yourself and fair to yourself.</p>
+        <div id="sliders"></div>
+        <div class="live" style="margin-top:12px"><b id="live-score">50</b><div><div class="small soft">Behavior score out of 100</div><span id="live-tone" class="tone mid">Growing</span></div></div>
+        <div class="form" style="margin-top:16px">
+          <div class="field"><label class="l" for="f-digital">Minutes on social media or screens for this event</label><input type="number" id="f-digital" min="0" max="1440" step="5" placeholder="0"></div>
+          <div class="field"><label class="l" for="f-spend">Unplanned spending for this event <span class="soft" id="cur-lab"></span></label><input type="number" id="f-spend" min="0" step="1" placeholder="0"></div>
+        </div>
+      </div>
+
+      <div class="page">
+        <h3>3. Hold it up to the scholars</h3>
+        <p class="cap">Pick a scholar whose life or teaching speaks to this area, then rate yourself on the practices below.</p>
+        <div class="field" style="margin-bottom:12px"><label class="l" for="f-scholar">Scholar to measure against</label><select id="f-scholar"></select></div>
+        <div class="mirror" id="mirror-box"></div>
+      </div>
+
+      <div class="page">
+        <h3>4. One step forward</h3>
+        <div class="field" style="margin-top:8px"><label class="l" for="f-action">What will you do differently, starting today?</label><textarea id="f-action" placeholder="One small, specific action you can finish this week."></textarea></div>
+        <div class="row" style="margin-top:16px">
+          <button type="submit" class="btn" id="btn-save"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg><span id="btn-save-t">Save reflection</span></button>
+          <button type="button" class="btn ghost" id="btn-reset">Clear form</button>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <!-- JOURNAL -->
+  <section class="view" id="view-journal" hidden aria-labelledby="t-journal">
+    <div class="view-head"><div><h2>Journal</h2><p class="soft">Edit, duplicate, delete or export any reflection. Every change can be undone from the bar below.</p></div></div>
+    <div class="filters">
+      <input type="search" id="j-q" placeholder="Search your reflections" aria-label="Search">
+      <select id="j-domain" aria-label="Area of life"></select>
+      <select id="j-layer" aria-label="Layer"></select>
+      <select id="j-sort" aria-label="Sort"><option value="new">Newest first</option><option value="old">Oldest first</option><option value="low">Lowest score first</option><option value="high">Highest score first</option></select>
+    </div>
+    <p class="soft small" id="j-count"></p>
+    <div class="entries" id="j-list"></div>
+  </section>
+
+  <!-- MIRROR -->
+  <section class="view" id="view-mirror" hidden aria-labelledby="t-mirror">
+    <div class="view-head">
+      <div><h2>Scholar Mirror</h2><p class="soft">See how the scholars handled the same range of affairs you face, and what they would ask of you today.</p></div>
+      <div class="seg" id="mirror-mode" role="group" aria-label="Browse by"><button data-mode="domain" aria-pressed="true">By area of life</button><button data-mode="scholar" aria-pressed="false">By scholar</button></div>
+    </div>
+    <div class="chips" id="mirror-chips"></div>
+    <div id="mirror-body" class="stack"></div>
+    <p class="soft small">These lenses summarize each scholar's well-known teaching and reported conduct in my own words. They are reminders, not quotations. Check the original works, and ask a qualified teacher for rulings.</p>
+  </section>
+
+  <!-- REPORTS -->
+  <section class="view" id="view-reports" hidden aria-labelledby="t-reports">
+    <div class="view-head"><div><h2>Reports &amp; data</h2><p class="soft">Create a PDF to read, print or share with a mentor. Your journal stays in this browser unless you export it.</p></div></div>
+    <div class="grid2">
+      <div class="page stack">
+        <div><h3>PDF report</h3><p class="cap">Summary charts, area scores, scholar-mirror alignment and your entries.</p></div>
+        <div class="form">
+          <div class="field"><label class="l" for="r-period">Period</label><select id="r-period"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="all">All reflections</option></select></div>
+          <div class="field"><label class="l" for="r-detail">Detail</label><select id="r-detail"><option value="full">Full entries with narrative</option><option value="brief">Scores only, no narrative</option></select></div>
+          <div class="field full"><label class="l"><input type="checkbox" id="r-ex"> Include example entries</label></div>
+        </div>
+        <p class="soft small" id="r-preview"></p>
+        <div class="row"><button class="btn" id="btn-pdf"><svg class="ic" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>Download PDF report</button><button class="btn ghost" id="btn-csv">Download CSV</button></div>
+      </div>
+      <div class="page stack">
+        <div><h3>Backup &amp; data</h3><p class="cap">Move your journal between devices or keep a private copy.</p></div>
+        <div class="row"><button class="btn ghost" id="btn-json">Download backup (JSON)</button><label class="btn ghost" for="imp-file" style="cursor:pointer">Import backup</label><input type="file" id="imp-file" accept=".json,application/json" class="sr"></div>
+        <div class="row"><button class="btn danger" id="btn-clear-ex">Clear example entries</button><button class="btn danger" id="btn-erase">Erase everything</button></div>
+        <p class="soft small" id="data-note"></p>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="page">
+        <h3>Your targets</h3>
+        <p class="cap">Targets appear as gold markers on the dashboard and in the PDF.</p>
+        <div class="form">
+          <div class="field"><label class="l" for="s-target">Behavior target (1 to 10)</label><input type="number" id="s-target" min="1" max="10" step="0.5"></div>
+          <div class="field"><label class="l" for="s-limit">Daily screen goal (minutes)</label><input type="number" id="s-limit" min="0" step="5"></div>
+          <div class="field"><label class="l" for="s-cur">Currency symbol</label><input type="text" id="s-cur" maxlength="4"></div>
+        </div>
+      </div>
+      <div class="page">
+        <h3>How the scoring works</h3>
+        <ul class="qlist small">
+          <li><b>Behavior score:</b> the average of five ratings (sincerity, restraint, gratitude, benefit to others, presence) shown out of 100.</li>
+          <li><b>Mirror alignment:</b> how consistently you kept the three practices modeled by the scholar you chose, from Not yet (0) to Consistently (2).</li>
+          <li><b>Creed-to-Commerce™ layers:</b> Creed (belief and intention), Character (akhlaq), Conduct (daily practice) and Commerce (earning and spending). Each reflection sits in one layer so you can see where you hold firm and where creed fails to reach your commerce.</li>
+          <li>This is a reflection aid. It is not a fatwa, and it does not replace a qualified teacher.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot"><b>Creed-to-Commerce™</b> · The Balanced Middle Path Academy, LLC (BMPA). Every act of earning, spending and living stays accountable to the creed.</footer>
+</main>
+
+<div class="dock" role="toolbar" aria-label="Edit tools">
+  <div class="in">
+    <button class="btn main" id="d-new"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New</button>
+    <button class="btn" id="d-edit"><svg class="ic" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>Edit latest</button>
+    <button class="btn" id="d-undo"><svg class="ic" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>Undo</button>
+    <button class="btn" id="d-redo"><svg class="ic" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>Redo</button>
+    <span class="sp"></span>
+    <button class="btn" id="d-pdf"><svg class="ic" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg>PDF report</button>
+  </div>
+</div>
+<div id="toast" role="status" hidden></div>
+
+<script>
+/* ---------- DATA ---------- */
+const LAYERS=[
+  {id:'creed',n:'Creed',d:'Belief & intention'},
+  {id:'character',n:'Character',d:'Akhlaq'},
+  {id:'conduct',n:'Conduct',d:'Daily practice'},
+  {id:'commerce',n:'Commerce',d:'Earning & spending'}
+];
+const METRICS=[
+  {k:'ikhlas',n:'Sincerity',ar:'Ikhlas',q:'Was it for Allah, not for show or praise?'},
+  {k:'sabr',n:'Restraint',ar:'Sabr',q:'Did I hold back from what I should not say or do?'},
+  {k:'shukr',n:'Gratitude',ar:'Shukr',q:'Was my heart content with what Allah gave me?'},
+  {k:'nafa',n:'Benefit',ar:"Nafa'",q:'Did other people gain from how I acted?'},
+  {k:'hudur',n:'Presence',ar:'Hudur',q:'Was I present, free of distraction?'}
+];
+const SCHOLARS={
+  jawzi:{n:'Ibn al-Jawzi',era:'d. 597 AH / 1201 CE',works:"Sayd al-Khatir; Talbis Iblis",note:'Baghdad preacher, Hanbali jurist and prolific author.'},
+  qudamah:{n:'Ibn Qudamah al-Maqdisi',era:'d. 620 AH / 1223 CE',works:"al-Mughni; at-Tawwabin; Mukhtasar Minhaj al-Qasidin",note:'Hanbali jurist of Damascus, known for worship and restraint.'},
+  nawawi:{n:'Imam an-Nawawi',era:'d. 676 AH / 1277 CE',works:"Riyad as-Salihin; al-Arba'in; al-Adhkar",note:'Shafi\'i jurist and hadith scholar of Damascus who died in his mid-forties.'},
+  taymiyyah:{n:'Ibn Taymiyyah',era:'d. 728 AH / 1328 CE',works:"Majmu' al-Fatawa; al-Hisba fi'l-Islam",note:'Damascene Hanbali scholar known for steadfastness, including in prison.'},
+  kathir:{n:'Ibn Kathir',era:'d. 774 AH / 1373 CE',works:"Tafsir al-Qur'an al-'Azim; al-Bidaya wa'n-Nihaya",note:'Hadith scholar, historian and commentator on the Qur\'an in Damascus.'},
+  qayyim:{n:'Ibn al-Qayyim',era:'d. 751 AH / 1350 CE',works:"Madarij as-Salikin; al-Fawa'id; al-Wabil as-Sayyib",note:'Student of Ibn Taymiyyah and a physician of the diseases of the heart.'},
+  rajab:{n:'Ibn Rajab al-Hanbali',era:'d. 795 AH / 1393 CE',works:"Jami' al-'Ulum wa'l-Hikam; Lata'if al-Ma'arif",note:'Hanbali hadith scholar whose commentary on fifty hadith is still widely studied.'},
+  baz:{n:'Shaykh Ibn Baz',era:'d. 1420 AH / 1999 CE',works:"Majmu' Fatawa Ibn Baz",note:'Grand Mufti of Saudi Arabia, who lost his sight in youth.'},
+  albani:{n:'Shaykh al-Albani',era:'d. 1420 AH / 1999 CE',works:"Silsilat al-Ahadith as-Sahiha; Sahih at-Targhib",note:'Hadith scholar of the twentieth century, reported to have supported himself by repairing watches.'},
+  uthaymeen:{n:'Shaykh Ibn Uthaymeen',era:'d. 1421 AH / 2001 CE',works:"Sharh Riyad as-Salihin; ash-Sharh al-Mumti'",note:'Scholar of Unayzah known for clear, structured teaching and weekly open question sessions.'}
+};
+const SCH_ORDER=['jawzi','qudamah','nawawi','taymiyyah','qayyim','kathir','rajab','baz','albani','uthaymeen'];
+
+const DOMAINS=[
+ {id:'worship',n:'Prayer & Worship',s:'Prayer',layer:'creed',
+  verse:{t:'The first thing a servant will be held to account for on the Day of Resurrection is his prayer.',r:"Hadith, at-Tirmidhi and an-Nasa'i"},
+  lenses:[
+   {s:'uthaymeen',t:"Taught that presence of heart (khushu') is the aim of prayer, not only its outward form, and urged students to pray on time, in congregation where it is required, and to understand what they recite."},
+   {s:'qayyim',t:"In al-Wabil as-Sayyib and Madarij as-Salikin he describes prayer and remembrance as food for the heart. A body kept busy while the heart is starved of dhikr still decays."}],
+  checks:['I prayed each obligatory prayer on time, in congregation where possible.','I understood what I recited and tried to be present in it.','I added regular voluntary worship: sunan, Qur\'an or adhkar.'],
+  prompt:'Which prayer was weakest today, and what pulled my attention away from it?'},
+ {id:'sincerity',n:'Sincerity & Intention',s:'Sincerity',layer:'creed',
+  verse:{t:'Actions are only by intentions, and every person will have only what he intended.',r:'Hadith, al-Bukhari and Muslim'},
+  lenses:[
+   {s:'nawawi',t:"Opened both Riyad as-Salihin and al-Arba'in with the hadith of intentions, showing that every act, including earning and eating, is judged first by its purpose."},
+   {s:'rajab',t:"In Jami' al-'Ulum wa'l-Hikam he explains that intention is the soul of every deed and that hidden show-off (riya') threatens even the devout. A sincere deed would not change if nobody were watching."},
+   {s:'jawzi',t:"In Talbis Iblis he warns that Satan deceives worshippers and scholars alike through self-admiration and love of praise. Honest suspicion of oneself is the defense."}],
+  checks:['I renewed my intention before the main tasks of the day.','I did some good that nobody knows about.','I noticed a wish for praise or recognition and corrected it.'],
+  prompt:'What did I do today that I would do differently if no one could ever know?'},
+ {id:'time',n:'Time & Focus',s:'Time',layer:'conduct',
+  verse:{t:'Two blessings are ones many people lose out on: health and free time.',r:'Hadith, al-Bukhari'},
+  lenses:[
+   {s:'jawzi',t:"In Sayd al-Khatir he returns again and again to the value of time, treating wasted hours as the one loss that cannot be repaid. Biographers report that he wrote hundreds of works."},
+   {s:'uthaymeen',t:"Known for a fixed daily rhythm of teaching, answering questions and worship, including weekly open question sessions. He modeled steady regularity over bursts of energy."},
+   {s:'albani',t:"Reported to have kept his paid work to a few hours so that most of the day went to study of hadith in the Zahiriyya library in Damascus. His income served his time, not the other way round."}],
+  checks:['I planned the day around the prayer times and my top priorities.','I protected one block of focused work or study without interruptions.','I could account for how I spent my free time.'],
+  prompt:'Where did an hour disappear today, and what would I have done with it if I had treasured it?'},
+ {id:'tongue',n:'Speech & Tongue',s:'Tongue',layer:'character',
+  verse:{t:'Whoever believes in Allah and the Last Day, let him speak good or remain silent.',r:'Hadith, al-Bukhari and Muslim'},
+  lenses:[
+   {s:'nawawi',t:"Gave the tongue its own chapters in Riyad as-Salihin and al-Adhkar, naming backbiting, slander, lying and idle talk and gathering the evidence against each."},
+   {s:'qudamah',t:"In his abridgment of Minhaj al-Qasidin the afflictions of the tongue, such as arguing, boasting and joking at others' expense, are treated as diseases of the heart that show themselves in speech."},
+   {s:'baz',t:"Students describe gentle speech even with those who disagreed with him, and patient, plain answers to every questioner."}],
+  checks:['I avoided backbiting and did not stay to listen to it.','I paused before replying in a heated exchange.','I spoke truthfully, including in jokes, and kept my promises.'],
+  prompt:'Which of my words today would I be uncomfortable to find in my record of deeds?'},
+ {id:'digital',n:'Social Media & Screens',s:'Screens',layer:'conduct',
+  verse:{t:'Part of the excellence of a person\'s Islam is leaving what does not concern him.',r:'Hadith, at-Tirmidhi and Ibn Majah'},
+  lenses:[
+   {s:'qayyim',t:"In al-Fawa'id he traces how a passing thought grows into a desire, then a resolve, then an act, and teaches guarding the heart at the first stage. Applied today: a feed is an endless stream of first-stage thoughts."},
+   {s:'rajab',t:"Explaining the hadith on leaving what does not concern you, he treats it as a rule for speech, sight and time: whatever brings no benefit in this life or the next, leave it."}],
+  checks:['I decided in advance how long to use social media, and kept to it.','I muted or unfollowed content that stirs envy, lust, anger or comparison.','I replaced scrolling with Qur\'an, reading, family or useful work.'],
+  prompt:'What did I consume today that made my heart smaller, and what would have fed it instead?'},
+ {id:'wealth',n:'Wealth & Materialism',s:'Wealth',layer:'commerce',
+  verse:{t:'Competition for worldly increase diverts you, until you visit the graves.',r:'Qur\'an 102:1-2 (at-Takathur)'},
+  lenses:[
+   {s:'rajab',t:"In his commentary on the hadith of the stranger and the traveler, he teaches that the believer treats this world as a road, taking only what carries him to the destination. His explanation of the hadith of the two hungry wolves warns that love of wealth and status ruins religion faster than wolves ruin sheep."},
+   {s:'nawawi',t:"Lived plainly despite his standing, and Riyad as-Salihin devotes chapters to zuhd, contentment and moderation in spending."},
+   {s:'baz',t:"Students and biographers report open-handed generosity: his home received students and the needy, and he gave charity widely."}],
+  checks:['I separated need from want before spending.','I gave sadaqah this week, even a small amount.','I did not compare my lifestyle with people who have more.'],
+  prompt:'What did I buy or crave today, and what need was I trying to fill?'},
+ {id:'earning',n:'Halal Earning & Business',s:'Earning',layer:'commerce',
+  verse:{t:'The truthful, trustworthy merchant will be with the prophets, the truthful and the martyrs.',r:'Hadith, at-Tirmidhi'},
+  lenses:[
+   {s:'taymiyyah',t:"In al-Hisba fi'l-Islam he sets out market ethics as a public duty: honest weights, no fraud or deception, no exploitative hoarding and fair dealing for all parties."},
+   {s:'rajab',t:"Commenting on 'Allah is Good and accepts only what is good,' he explains that the source of food and income affects the acceptance of worship and supplication."},
+   {s:'albani',t:"Reported to have chosen the honest trade of watch repair so that he never depended on others and his knowledge was never for sale."}],
+  checks:['My earnings and deals were free of riba, deception and doubtful terms.','I paid staff, suppliers and zakah what was due, on time.','I told customers the whole truth about what I sell.'],
+  prompt:'Would my creed approve of how I earned today, and how I priced it?'},
+ {id:'family',n:'Family & Home',s:'Family',layer:'conduct',
+  verse:{t:'The best of you are the best to their families, and I am the best of you to my family.',r:'Hadith, at-Tirmidhi and Ibn Majah'},
+  lenses:[
+   {s:'kathir',t:"On 'live with them in kindness' (4:19) he points to the Prophet's conduct with his wives as the standard: good speech, good manners and a cheerful face, treating them as you wish to be treated."},
+   {s:'baz',t:"Described as approachable and kind, sitting with young and old, rich and poor, and answering each with patience."}],
+  checks:['I gave a family member my undivided attention at least once.','I handled a disagreement at home with gentleness and fairness.','I kept family ties, including a call or visit to a relative.'],
+  prompt:'Who at home received my best self today, and who received what was left over?'},
+ {id:'knowledge',n:'Seeking Knowledge',s:'Knowledge',layer:'conduct',
+  verse:{t:'Whoever travels a path seeking knowledge, Allah makes easy for him a path to Paradise.',r:'Hadith, Muslim'},
+  lenses:[
+   {s:'nawawi',t:"As a student in Damascus he is reported to have attended around a dozen lessons a day, and he left a lasting body of work despite dying in his mid-forties."},
+   {s:'kathir',t:"A memorizer of hadith who taught and wrote on tafsir and history. His method of explaining the Qur'an first by the Qur'an and then by the Sunnah models disciplined, source-first learning."},
+   {s:'uthaymeen',t:"Known for teaching gradually from short, memorized texts to larger books, and for repeating core texts with students so that knowledge becomes firm."}],
+  checks:['I studied something beneficial from a reliable source.','I acted on one thing I learned.','I asked a qualified person instead of guessing on a religious matter.'],
+  prompt:'What did I learn today, and which one thing will I act on?'},
+ {id:'anger',n:'Anger & Patience',s:'Patience',layer:'character',
+  verse:{t:'The strong one is not the one who overcomes people, but the one who controls himself when angry.',r:'Hadith, al-Bukhari and Muslim'},
+  lenses:[
+   {s:'taymiyyah',t:"A well-known account has him forgiving a powerful opponent and urging against retaliation when the ruler asked his view, even after years of hardship and prison."},
+   {s:'qayyim',t:"In Madarij as-Salikin he describes patience in three forms: patience in obedience, patience away from sin, and patience with trials. He calls it the vehicle that carries the other stations."}],
+  checks:['I felt anger rising and changed posture, made wudu or stepped away.','I forgave something without waiting for an apology.','I corrected someone without humiliating them.'],
+  prompt:'What triggered my anger today, and what need sat behind it?'},
+ {id:'humility',n:'Humility & Ego',s:'Humility',layer:'character',
+  verse:{t:'No one who has an atom\'s weight of arrogance in his heart will enter Paradise.',r:'Hadith, Muslim'},
+  lenses:[
+   {s:'jawzi',t:"In Sayd al-Khatir and Talbis Iblis he records how self-satisfaction creeps into the learned and the devout, and urges constant accounting of the hidden motives behind good deeds."},
+   {s:'baz',t:"Students describe him as unassuming despite high office, sitting with ordinary people and welcoming anyone who came."},
+   {s:'nawawi',t:"Reported to have advised rulers with fearless sincerity while living modestly himself, showing that humility and courage belong together."}],
+  checks:['I accepted correction without defending myself.','I served someone without wanting credit.','I credited Allah and others for my successes.'],
+  prompt:'When did I last say, "I was wrong"?'},
+ {id:'community',n:'Community & Brotherhood',s:'Community',layer:'character',
+  verse:{t:'None of you truly believes until he loves for his brother what he loves for himself.',r:'Hadith, al-Bukhari and Muslim'},
+  lenses:[
+   {s:'nawawi',t:"Included this hadith as number 13 of al-Arba'in, and 'the religion is sincere advice' (nasiha) as number 7. Together they make private, sincere counsel a mark of real care for others."},
+   {s:'taymiyyah',t:"Wrote repeatedly on the duty of believers to cooperate in righteousness and to avoid needless division (Qur'an 5:2 and 3:103)."}],
+  checks:['I helped a neighbor, colleague or believer without being asked.','I gave sincere advice privately and kindly.','I made du\'a for someone who was not present.'],
+  prompt:'Who did I help today, and who did I leave unhelped when I could have acted?'}
+];
+const DOM=Object.fromEntries(DOMAINS.map(d=>[d.id,d]));
+
+/* ---------- HELPERS ---------- */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const todayStr=()=>ymd(new Date());
+const parseD=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
+const daysAgo=n=>{const d=new Date();d.setDate(d.getDate()-n);return ymd(d);};
+const fmtD=s=>parseD(s).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
+const fmtShort=s=>parseD(s).toLocaleDateString(undefined,{day:'numeric',month:'short'});
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const uid=()=>'e'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const score=e=>Math.round(avg(METRICS.map(m=>+e.m[m.k]||0))*10);
+const mirrorPct=e=>Array.isArray(e.checks)&&e.checks.length===3&&e.checks.every(c=>c===0||c===1||c===2)?Math.round(e.checks.reduce((a,b)=>a+b,0)/6*100):null;
+const tone=s=>s>=80?{c:'good',l:'Steady'}:s>=60?{c:'mid',l:'Growing'}:{c:'low',l:'Needs muhasabah'};
+const CHECK_LABELS=['Not yet','Sometimes','Consistently'];
+
+/* ---------- STATE ---------- */
+const LS_KEY='muhasabah-mirror-v1';
+let S=null, undoStack=[], redoStack=[], period=30, editingId=null, tab='dash';
+let mirrorMode='domain', mirrorSel='worship';
+
+function makeSamples(){
+  const mk=(ago,domain,title,story,feel,scholar,checks,m,extra={})=>({id:uid(),date:daysAgo(ago),domain,layer:DOM[domain].layer,title,story,feel,scholar,checks,
+    m:{ikhlas:m[0],sabr:m[1],shukr:m[2],nafa:m[3],hudur:m[4]},digital:extra.digital||0,spend:extra.spend||0,action:extra.action||'',sample:true});
+  return [
+   mk(2,'digital','Two hours lost scrolling after Isha','I picked up my phone to check one message and was still scrolling at midnight, comparing my business to other people\'s posts.','Restless and a little envious. I told myself it was research.','qayyim',[0,1,0],[5,3,5,2,2],{digital:130,action:'Charge the phone outside the bedroom and set a 45-minute daily limit.'}),
+   mk(3,'earning','Declined a rushed sale that hid a defect','A buyer wanted to close fast on an item with a flaw I had noticed. I told him about it and let him decide.','Tempted by the profit, then relieved. He thanked me and still bought it at a fair price.','taymiyyah',[2,2,1],[9,8,7,8,8],{action:'Add a written condition note to every listing.'}),
+   mk(5,'wealth','Impulse purchase of a gadget I did not need','Saw a sale notification and bought a gadget within minutes. I already own a working one.','Excited for an hour, then regret.','rajab',[1,0,1],[6,3,4,2,5],{spend:89,action:'Wait 48 hours before any non-essential purchase.'}),
+   mk(6,'anger','Calm response when a customer shouted','A customer raised his voice over a delayed order. I lowered mine, apologized for the delay and offered a fix.','My chest tightened. I made a silent du\'a and slowed my breathing.','qayyim',[1,2,1],[8,7,7,6,7],{action:'Keep a short phrase of dhikr ready for tense moments.'}),
+   mk(9,'worship','Fajr in congregation after a week of missing it','I set two alarms and moved the phone across the room. I prayed Fajr at the masjid for the first time this week.','Tired at first, then calm for the rest of the morning.','uthaymeen',[2,1,1],[8,7,9,6,7],{action:'Sleep by 10:30 pm on weeknights.'}),
+   mk(12,'family','Put the phone away for dinner with the children','Phone went in a drawer. We talked about their day and I listened without correcting.','Warm. My youngest told me something she had been holding back.','kathir',[2,1,2],[8,8,8,8,9],{action:'Keep the drawer rule every evening.'}),
+   mk(16,'sincerity','Caught myself posting for praise','I was about to post a photo of a charity gift. I asked myself why and deleted the draft.','Uncomfortable. I realized I wanted to be seen as generous.','jawzi',[1,1,1],[5,6,6,3,5],{digital:40,action:'Give one sadaqah each week that no one knows about.'}),
+   mk(19,'knowledge','Studied Arba\'in hadith 13 with notes','Read the hadith on loving for your brother what you love for yourself, and listed three people I had been cold toward.','Convicted but hopeful.','nawawi',[2,2,1],[9,7,8,7,8],{action:'Call two of those three people this week.'})
+  ];
+}
+function load(){try{const r=localStorage.getItem(LS_KEY);if(r){const o=JSON.parse(r);if(o&&Array.isArray(o.entries))return o;}}catch(e){}return null;}
+function persist(){try{localStorage.setItem(LS_KEY,JSON.stringify(S));}catch(e){}}
+function initState(){
+  const o=load();
+  S=o||{entries:makeSamples(),settings:{}};
+  S.settings=Object.assign({target:8,dailyLimit:60,currency:'$'},S.settings||{});
+}
+function mutate(fn,msg,withUndo=true){
+  undoStack.push(JSON.stringify(S.entries)); if(undoStack.length>40)undoStack.shift(); redoStack=[];
+  fn(); persist(); renderAll(); if(msg)toast(msg,withUndo);
+}
+function undo(){ if(!undoStack.length)return; redoStack.push(JSON.stringify(S.entries)); S.entries=JSON.parse(undoStack.pop()); persist(); renderAll(); toast('Undone'); }
+function redo(){ if(!redoStack.length)return; undoStack.push(JSON.stringify(S.entries)); S.entries=JSON.parse(redoStack.pop()); persist(); renderAll(); toast('Redone'); }
+
+let toastTimer=null;
+function toast(msg,withUndo){
+  const t=$('#toast'); t.innerHTML=''; const sp=document.createElement('span'); sp.textContent=msg; t.appendChild(sp);
+  if(withUndo){const b=document.createElement('button'); b.textContent='Undo'; b.onclick=()=>{undo();}; t.appendChild(b);}
+  t.hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>{t.hidden=true;},6000);
+}
+
+/* ---------- ICONS ---------- */
+const ICON={
+  pencil:'<path d="M4 20h4L19 9l-4-4L4 16v4z"/>',copy:'<path d="M9 9h10v10H9z"/><path d="M5 15V5h10"/>',
+  trash:'<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/>',file:'<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>'
+};
+const ic=n=>`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICON[n]}</svg>`;
+
+/* ---------- ANALYTICS ---------- */
+function inPeriod(p){ if(p==='all')return S.entries.slice(); const cut=daysAgo(+p-1); return S.entries.filter(e=>e.date>=cut); }
+function streak(){
+  const set=new Set(S.entries.map(e=>e.date)); let d=set.has(todayStr())?0:1, n=0;
+  while(set.has(daysAgo(d))){n++;d++;} return n;
+}
+function domainAvgs(list){ return DOMAINS.map(d=>{const a=list.filter(e=>e.domain===d.id).map(score);return {d,n:a.length,v:a.length?avg(a):null};}); }
+function layerAvgs(list){ return LAYERS.map(l=>{const a=list.filter(e=>e.layer===l.id).map(score);return {l,n:a.length,v:a.length?avg(a):null};}); }
+function metricAvgs(list){ return METRICS.map(m=>({m,v:list.length?avg(list.map(e=>+e.m[m.k]||0)):null})); }
+function weekBuckets(){
+  const out=[]; for(let i=5;i>=0;i--){const from=daysAgo(i*7+6),to=daysAgo(i*7);const l=S.entries.filter(e=>e.date>=from&&e.date<=to);
+    out.push({from,to,min:l.reduce((a,e)=>a+(+e.digital||0),0),spend:l.reduce((a,e)=>a+(+e.spend||0),0),label:i===0?'This week':i===1?'Last week':fmtShort(from)});}
+  return out;
+}
+const fmtMoney=n=>S.settings.currency+Math.round(n).toLocaleString();
+
+/* ---------- TABS ---------- */
+function setTab(t){
+  tab=t;
+  $$('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===t)));
+  $$('.view').forEach(v=>{ if(v.id.startsWith('view-')) v.hidden=(v.id!=='view-'+t); });
+  window.scrollTo({top:0});
+  if(t==='mirror')renderMirror(); if(t==='reports')renderReports(); if(t==='journal')renderJournal(); if(t==='dash')renderDash();
+}
+
+/* ---------- DASHBOARD ---------- */
+function barRow(label,sub,val,max,text,target){
+  const w=Math.max(0,Math.min(100,val==null?0:val/max*100));
+  return `<div class="brow"><div class="lab">${esc(label)}${sub?`<small>${esc(sub)}</small>`:''}</div><div class="bar" role="img" aria-label="${esc(label)} ${esc(text)}"><i style="width:${w}%"></i>${target!=null?`<u style="left:${target/max*100}%"></u>`:''}</div><div class="val">${esc(text)}</div></div>`;
+}
+function radarSVG(list){
+  const n=DOMAINS.length,cx=210,cy=205,R=125,T=S.settings.target/10;
+  const ang=i=>-Math.PI/2+i*2*Math.PI/n;
+  const pt=(i,v)=>[cx+Math.cos(ang(i))*R*v,cy+Math.sin(ang(i))*R*v];
+  const poly=f=>DOMAINS.map((_,i)=>pt(i,f(i)).map(v=>v.toFixed(1)).join(',')).join(' ');
+  const avgs=domainAvgs(list);
+  let g='';
+  [0.25,0.5,0.75,1].forEach(r=>{g+=`<polygon class="rg" points="${poly(()=>r)}"/>`;});
+  DOMAINS.forEach((_,i)=>{const [x,y]=pt(i,1);g+=`<line class="ax" x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>`;});
+  g+=`<polygon class="rt" points="${poly(()=>T)}"/>`;
+  g+=`<polygon class="rv" points="${poly(i=>avgs[i].v==null?0:avgs[i].v/100)}"/>`;
+  DOMAINS.forEach((d,i)=>{
+    const v=avgs[i].v, [x,y]=pt(i,v==null?0:v/100);
+    if(v!=null)g+=`<circle class="dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4"><title>${esc(d.n)}: ${Math.round(v)}/100 from ${avgs[i].n} reflection${avgs[i].n>1?'s':''}</title></circle>`;
+    const c=Math.cos(ang(i)),s=Math.sin(ang(i)),lx=cx+c*(R+14),ly=cy+s*(R+14)+(s>0.3?11:s<-0.3?-3:4);
+    const a=c>0.3?'start':c<-0.3?'end':'middle';
+    g+=`<text class="${v==null?'dim':''}" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${a}" font-size="12.5">${esc(d.s)}${v==null?'':' '+Math.round(v)}</text>`;
+  });
+  [25,50,75,100].forEach(r=>{g+=`<text class="dim" x="${cx+4}" y="${(cy-R*r/100+11).toFixed(1)}" font-size="9.5">${r}</text>`;});
+  return `<svg class="chart" viewBox="0 0 420 410" role="img" aria-label="Radar chart of average behavior score across twelve areas of life">${g}</svg>`;
+}
+function trendSVG(list){
+  const W=640,H=230,L=36,Rr=16,T=14,B=30,pw=W-L-Rr,ph=H-T-B;
+  const pts=list.slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0).slice(-30);
+  const y=v=>T+ph-(v/100)*ph;
+  let g='';
+  [0,25,50,75,100].forEach(v=>{g+=`<line class="ax" x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}"/><text class="dim" x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11">${v}</text>`;});
+  const ty=y(S.settings.target*10);
+  g+=`<line x1="${L}" x2="${W-Rr}" y1="${ty}" y2="${ty}" style="stroke:var(--gold);stroke-width:1.6;stroke-dasharray:5 4"/><text x="${W-Rr}" y="${ty-5}" text-anchor="end" font-size="11" style="fill:var(--gold);font-weight:700">Target ${S.settings.target*10}</text>`;
+  if(pts.length){
+    const t0=parseD(pts[0].date).getTime(),t1=parseD(pts[pts.length-1].date).getTime();
+    const x=e=>pts.length===1||t1===t0?L+pw/2:L+((parseD(e.date).getTime()-t0)/(t1-t0))*pw;
+    const line=pts.map(e=>`${x(e).toFixed(1)},${y(score(e)).toFixed(1)}`).join(' ');
+    g+=`<polygon class="ta" points="${x(pts[0]).toFixed(1)},${y(0)} ${line} ${x(pts[pts.length-1]).toFixed(1)},${y(0)}"/><polyline class="tl" points="${line}"/>`;
+    pts.forEach((e,i)=>{g+=`<circle class="tp${i===pts.length-1?' last':''}" cx="${x(e).toFixed(1)}" cy="${y(score(e)).toFixed(1)}" r="${i===pts.length-1?6:4}"><title>${esc(fmtD(e.date))}: ${esc(e.title)} (${score(e)})</title></circle>`;});
+    g+=`<text class="dim" x="${L}" y="${H-8}" font-size="11">${esc(fmtShort(pts[0].date))}</text><text class="dim" x="${W-Rr}" y="${H-8}" text-anchor="end" font-size="11">${esc(fmtShort(pts[pts.length-1].date))}</text>`;
+  }
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Behavior score over time">${g}</svg>`;
+}
+function weekChart(vals,labels,fmt,limit,color){
+  const max=Math.max(1,...vals,limit||0)*1.12;
+  const cols=vals.map(v=>`<div class="col"><span>${fmt(v)}</span><i style="height:${Math.max(v>0?3:0,v/max*100)}%;${color?`background:${color}`:''}"></i></div>`).join('');
+  const lim=limit?`<div class="lim" style="bottom:${limit/max*100}%" title="Your goal"></div>`:'';
+  return `<div class="wk">${cols}${lim}</div><div class="wk-lab">${labels.map(l=>`<span>${esc(l)}</span>`).join('')}</div>`;
+}
+function renderDash(){
+  const list=inPeriod(period), scores=list.map(score), mp=list.map(mirrorPct).filter(v=>v!=null);
+  const aS=scores.length?Math.round(avg(scores)):null, aM=mp.length?Math.round(avg(mp)):null;
+  const tg=S.settings.target;
+  const wb=weekBuckets();
+  const da=domainAvgs(list).filter(x=>x.v!=null).sort((a,b)=>a.v-b.v);
+  const untouched=domainAvgs(list).filter(x=>x.v==null).map(x=>x.d.n);
+  let focus='';
+  if(da.length){
+    const w=da[0].d, lens=w.lenses[0], sc=SCHOLARS[lens.s];
+    focus=`<div class="page"><h3>Area to strengthen</h3><p class="cap">Your lowest average in this period</p>
+      <p style="font:700 1.4rem var(--display);color:var(--brown)">${esc(w.n)} <span class="tone ${tone(da[0].v).c}">${Math.round(da[0].v)}</span></p>
+      <p style="margin-top:8px"><b>${esc(sc.n)}:</b> ${esc(lens.t)}</p>
+      <p class="soft" style="margin-top:8px">${esc(w.prompt)}</p>
+      <div class="row" style="margin-top:12px"><button class="btn sm" data-new="${w.id}">Reflect on this area</button><button class="btn sm ghost" data-mirror="${w.id}">See the scholar lenses</button></div>
+      ${untouched.length?`<p class="soft small" style="margin-top:12px">Not yet reflected on in this period: ${esc(untouched.join(', '))}.</p>`:''}</div>`;
+  } else {
+    focus=`<div class="page"><h3>Area to strengthen</h3><p class="soft">Add a reflection and this panel will point to the area that needs the most attention.</p></div>`;
+  }
+  $('#dash-body').innerHTML=`
+   <div class="strip">
+     <div><b>${list.length}</b><span>Reflections</span></div>
+     <div><b>${aS==null?'–':aS}</b><span>Avg behavior score</span></div>
+     <div><b>${aM==null?'–':aM+'%'}</b><span>Mirror alignment</span></div>
+     <div><b>${streak()}</b><span>Day streak</span></div>
+   </div>
+   <div class="grid2">
+     <div class="page"><h3>Twelve areas of life</h3><p class="cap">Average score per area. The gold ring is your target (${tg*10}).</p>${radarSVG(list)}</div>
+     <div class="stack">
+       <div class="page"><h3>Five measures of behavior</h3><p class="cap">Average rating out of 10 across the period.</p><div class="bars">${metricAvgs(list).map(x=>barRow(x.m.n,x.m.ar,x.v,10,x.v==null?'–':x.v.toFixed(1),tg)).join('')}</div><div class="legend"><span><u></u>Your target ${tg}</span></div></div>
+       <div class="page"><h3>Creed to Commerce™</h3><p class="cap">Do your convictions reach your conduct and your commerce?</p><div class="bars">${layerAvgs(list).map(x=>barRow(x.l.n,x.l.d+(x.n?` · ${x.n}`:''),x.v,100,x.v==null?'–':String(Math.round(x.v)),tg*10)).join('')}</div></div>
+     </div>
+   </div>
+   <div class="page"><h3>Behavior score over time</h3><p class="cap">Each point is one reflection. The gold marker is your latest.</p>${trendSVG(list)}</div>
+   <div class="grid2">
+     <div class="page"><h3>Distraction check</h3><p class="cap">Minutes you logged on screens, by week. Dashed line: your goal of ${S.settings.dailyLimit} min a day (${S.settings.dailyLimit*7} a week).</p>${weekChart(wb.map(w=>w.min),wb.map(w=>w.label),v=>v?v:'',S.settings.dailyLimit*7)}</div>
+     <div class="page"><h3>Materialism check</h3><p class="cap">Unplanned spending you logged, by week.</p>${weekChart(wb.map(w=>w.spend),wb.map(w=>w.label),v=>v?fmtMoney(v):'',0,'var(--m3)')}</div>
+   </div>
+   ${focus}`;
+}
+
+/* ---------- FORM ---------- */
+function initForm(){
+  $('#f-domain').innerHTML=DOMAINS.map(d=>`<option value="${d.id}">${esc(d.n)}</option>`).join('');
+  $('#f-layer').innerHTML=LAYERS.map(l=>`<option value="${l.id}">${esc(l.n)}: ${esc(l.d)}</option>`).join('');
+  $('#sliders').innerHTML=METRICS.map(m=>`<div class="slider"><label class="n" for="m-${m.k}"><b>${m.n}</b> <span class="soft small">(${m.ar})</span></label><output id="o-${m.k}">5</output><input type="range" id="m-${m.k}" min="1" max="10" step="1" value="5"><span class="q">${esc(m.q)}</span></div>`).join('');
+  $('#j-domain').innerHTML='<option value="">All areas</option>'+DOMAINS.map(d=>`<option value="${d.id}">${esc(d.n)}</option>`).join('');
+  $('#j-layer').innerHTML='<option value="">All layers</option>'+LAYERS.map(l=>`<option value="${l.id}">${esc(l.n)}</option>`).join('');
+}
+function liveScore(){
+  const v=Math.round(avg(METRICS.map(m=>+$('#m-'+m.k).value))*10), t=tone(v);
+  METRICS.forEach(m=>{$('#o-'+m.k).textContent=$('#m-'+m.k).value;});
+  $('#live-score').textContent=v; const el=$('#live-tone'); el.textContent=t.l; el.className='tone '+t.c;
+}
+function renderMirrorBox(keepScholar,checks){
+  const d=DOM[$('#f-domain').value];
+  const sel=$('#f-scholar'); const want=keepScholar||sel.value;
+  sel.innerHTML=d.lenses.map(l=>`<option value="${l.s}">${esc(SCHOLARS[l.s].n)}</option>`).join('');
+  sel.value=d.lenses.some(l=>l.s===want)?want:d.lenses[0].s;
+  const lens=d.lenses.find(l=>l.s===sel.value), sc=SCHOLARS[lens.s];
+  const cur=checks||[0,1,2].map(i=>{const r=$(`input[name="chk${i}"]:checked`);return r?+r.value:null;});
+  $('#mirror-box').innerHTML=`
+    <div class="verse">“${esc(d.verse.t)}”<small>${esc(d.verse.r)}</small></div>
+    <div><b>${esc(sc.n)}</b> <span class="soft small">· ${esc(sc.era)}</span><p style="margin-top:4px">${esc(lens.t)}</p></div>
+    <div class="checks">${d.checks.map((c,i)=>`<fieldset><legend class="legend-l" style="margin-bottom:5px">${esc(c)}</legend><div class="seg">${CHECK_LABELS.map((lab,v)=>`<label><input type="radio" name="chk${i}" value="${v}" ${cur[i]===v?'checked':''}>${lab}</label>`).join('')}</div></fieldset>`).join('')}</div>
+    <p class="soft"><b>Ask yourself:</b> ${esc(d.prompt)}</p>`;
+}
+function onDomainChange(){ $('#f-layer').value=DOM[$('#f-domain').value].layer; renderMirrorBox(); }
+function resetForm(domain){
+  editingId=null;
+  $('#form-title').textContent='New reflection'; $('#btn-save-t').textContent='Save reflection'; $('#edit-banner').hidden=true;
+  $('#f-date').value=todayStr(); $('#f-domain').value=domain||'worship'; $('#f-title').value=''; $('#f-story').value=''; $('#f-feel').value='';
+  METRICS.forEach(m=>{$('#m-'+m.k).value=5;}); $('#f-digital').value=''; $('#f-spend').value=''; $('#f-action').value='';
+  $('#f-layer').value=DOM[$('#f-domain').value].layer;
+  $('#f-scholar').innerHTML=''; renderMirrorBox(null,[null,null,null]); liveScore();
+}
+function startNew(domain){ resetForm(domain); setTab('reflect'); $('#f-title').focus({preventScroll:true}); }
+function editEntry(id){
+  const e=S.entries.find(x=>x.id===id); if(!e)return;
+  resetForm(e.domain); editingId=id;
+  $('#form-title').textContent='Edit reflection'; $('#btn-save-t').textContent='Save changes';
+  $('#edit-banner').hidden=false; $('#edit-banner-t').textContent='Editing: '+e.title+(e.sample?' (example entry)':'');
+  $('#f-date').value=e.date; $('#f-layer').value=e.layer; $('#f-title').value=e.title; $('#f-story').value=e.story||''; $('#f-feel').value=e.feel||'';
+  METRICS.forEach(m=>{$('#m-'+m.k).value=e.m[m.k];}); $('#f-digital').value=e.digital||''; $('#f-spend').value=e.spend||''; $('#f-action').value=e.action||'';
+  renderMirrorBox(e.scholar,Array.isArray(e.checks)?e.checks:[null,null,null]); liveScore(); setTab('reflect');
+}
+function saveForm(ev){
+  ev.preventDefault();
+  const title=$('#f-title').value.trim(); if(!title){$('#f-title').focus();toast('Add a short title first.');return;}
+  const chk=[0,1,2].map(i=>{const r=$(`input[name="chk${i}"]:checked`);return r?+r.value:null;});
+  const base={date:$('#f-date').value||todayStr(),domain:$('#f-domain').value,layer:$('#f-layer').value,title,story:$('#f-story').value.trim(),feel:$('#f-feel').value.trim(),
+    scholar:$('#f-scholar').value,checks:chk,m:Object.fromEntries(METRICS.map(m=>[m.k,+$('#m-'+m.k).value])),
+    digital:Math.max(0,+$('#f-digital').value||0),spend:Math.max(0,+$('#f-spend').value||0),action:$('#f-action').value.trim()};
+  const wasEdit=!!editingId;
+  mutate(()=>{
+    if(editingId){const i=S.entries.findIndex(x=>x.id===editingId); if(i>=0)S.entries[i]=Object.assign({},S.entries[i],base,{sample:false});}
+    else S.entries.push(Object.assign({id:uid(),sample:false},base));
+  },wasEdit?'Changes saved':'Reflection saved');
+  resetForm(); setTab('journal');
+}
+
+/* ---------- JOURNAL ---------- */
+let pendingDel=null, pendingTimer=null;
+function renderJournal(){
+  const q=$('#j-q').value.trim().toLowerCase(), dm=$('#j-domain').value, ly=$('#j-layer').value, so=$('#j-sort').value;
+  let l=S.entries.filter(e=>(!dm||e.domain===dm)&&(!ly||e.layer===ly)&&(!q||(e.title+' '+e.story+' '+e.feel+' '+e.action).toLowerCase().includes(q)));
+  const cmp={new:(a,b)=>b.date.localeCompare(a.date),old:(a,b)=>a.date.localeCompare(b.date),low:(a,b)=>score(a)-score(b),high:(a,b)=>score(b)-score(a)}[so];
+  l.sort(cmp);
+  $('#j-count').textContent=`${l.length} of ${S.entries.length} reflection${S.entries.length===1?'':'s'}`;
+  if(!l.length){
+    $('#j-list').innerHTML=S.entries.length?`<div class="empty">No reflection matches these filters.</div>`:`<div class="empty"><h3>Your journal is empty</h3><p style="margin:6px 0 12px">Record one real event from this week. A single honest entry is the start of muhasabah.</p><button class="btn" data-new="">Write the first reflection</button></div>`;
+    return;
+  }
+  $('#j-list').innerHTML=l.map(e=>{
+    const d=DOM[e.domain]||DOMAINS[0], s=score(e), t=tone(s), mp=mirrorPct(e), sc=SCHOLARS[e.scholar], lay=LAYERS.find(x=>x.id===e.layer);
+    return `<article class="entry ${t.c}" data-id="${e.id}">
+     <div class="e-head"><span class="chip">${esc(d.n)}</span><span class="chip">${esc(lay?lay.n:'')}</span>${e.sample?'<span class="chip ex">Example</span>':''}<span class="date">${esc(fmtD(e.date))}</span><span class="tone ${t.c}">${s} · ${t.l}</span></div>
+     <h3>${esc(e.title)}</h3>
+     ${e.story?`<p class="story">${esc(e.story)}</p>`:''}${e.feel?`<p class="story soft">${esc(e.feel)}</p>`:''}
+     <div class="mini">${METRICS.map(m=>`<div>${m.n} ${e.m[m.k]}<div class="bar"><i style="width:${e.m[m.k]*10}%"></i></div></div>`).join('')}</div>
+     <p class="small">${sc?`<b>Mirror:</b> ${esc(sc.n)}${mp!=null?` · ${mp}% aligned`:''}`:''}${e.digital?` · ${e.digital} min on screens`:''}${e.spend?` · ${esc(fmtMoney(e.spend))} unplanned`:''}</p>
+     ${e.action?`<p class="act-line"><b>Next step:</b> ${esc(e.action)}</p>`:''}
+     <div class="acts">
+       <button class="btn sm" data-act="edit">${ic('pencil')}Edit</button>
+       <button class="btn sm ghost" data-act="dup">${ic('copy')}Duplicate</button>
+       <button class="btn sm ghost" data-act="pdf">${ic('file')}PDF</button>
+       <button class="btn sm danger${pendingDel===e.id?' armed':''}" data-act="del">${ic('trash')}${pendingDel===e.id?'Confirm delete':'Delete'}</button>
+     </div></article>`;
+  }).join('');
+}
+function journalAction(ev){
+  const nb=ev.target.closest('[data-new]'); if(nb){startNew(nb.dataset.new||null);return;}
+  const b=ev.target.closest('[data-act]'); if(!b)return;
+  const id=b.closest('.entry').dataset.id, e=S.entries.find(x=>x.id===id); if(!e)return;
+  const a=b.dataset.act;
+  if(a==='edit')editEntry(id);
+  else if(a==='dup')mutate(()=>{S.entries.push(Object.assign({},JSON.parse(JSON.stringify(e)),{id:uid(),date:todayStr(),title:e.title+' (copy)',sample:false}));},'Reflection duplicated');
+  else if(a==='pdf')runPdf([e],{single:true,detail:'full',label:'Single reflection'},'muhasabah-reflection-'+e.date+'.pdf');
+  else if(a==='del'){
+    if(pendingDel===id){pendingDel=null;clearTimeout(pendingTimer);mutate(()=>{S.entries=S.entries.filter(x=>x.id!==id);},'Reflection deleted');}
+    else{pendingDel=id;clearTimeout(pendingTimer);pendingTimer=setTimeout(()=>{pendingDel=null;renderJournal();},4000);renderJournal();}
+  }
+}
+
+/* ---------- SCHOLAR MIRROR ---------- */
+function renderMirror(){
+  $$('#mirror-mode button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mirrorMode)));
+  const chips=$('#mirror-chips'), body=$('#mirror-body');
+  if(mirrorMode==='domain'){
+    chips.innerHTML=DOMAINS.map(d=>`<button data-sel="${d.id}" aria-pressed="${d.id===mirrorSel}">${esc(d.n)}</button>`).join('');
+    const d=DOM[mirrorSel]||DOMAINS[0];
+    body.innerHTML=`<div class="page"><h3>${esc(d.n)}</h3><p class="cap">${esc((LAYERS.find(l=>l.id===d.layer)||{}).n)} layer</p>
+      <div class="verse">“${esc(d.verse.t)}”<small>${esc(d.verse.r)}</small></div>
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px">${d.lenses.map(l=>{const s=SCHOLARS[l.s];return `<div class="lens"><h4>${esc(s.n)}<small>${esc(s.era)} · ${esc(s.works)}</small></h4><p>${esc(l.t)}</p></div>`;}).join('')}</div>
+      <h4 style="font:700 1.15rem var(--display);margin:18px 0 6px;color:var(--brown)">Practices to measure yourself against</h4>
+      <ul class="qlist">${d.checks.map(c=>`<li>${esc(c)}</li>`).join('')}</ul>
+      <p class="soft" style="margin-top:12px"><b>Ask yourself:</b> ${esc(d.prompt)}</p>
+      <div class="row" style="margin-top:14px"><button class="btn" data-new="${d.id}">Reflect on ${esc(d.s.toLowerCase())}</button></div></div>`;
+  } else {
+    chips.innerHTML=SCH_ORDER.map(k=>`<button data-sel="${k}" aria-pressed="${k===mirrorSel}">${esc(SCHOLARS[k].n)}</button>`).join('');
+    if(!SCHOLARS[mirrorSel])mirrorSel='nawawi';
+    const s=SCHOLARS[mirrorSel], rows=DOMAINS.map(d=>({d,l:d.lenses.find(x=>x.s===mirrorSel)})).filter(x=>x.l);
+    body.innerHTML=`<div class="page"><h3>${esc(s.n)}</h3><p class="cap">${esc(s.era)} · ${esc(s.works)}</p><p>${esc(s.note)}</p>
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px">${rows.map(r=>`<div class="lens"><h4>${esc(r.d.n)}<small>${esc((LAYERS.find(l=>l.id===r.d.layer)||{}).n)} layer</small></h4><div><p>${esc(r.l.t)}</p><button class="btn sm ghost" style="margin-top:8px" data-new="${r.d.id}">Reflect on ${esc(r.d.s.toLowerCase())}</button></div></div>`).join('')}</div></div>`;
+  }
+}
+
+/* ---------- REPORTS & DATA ---------- */
+function reportEntries(){
+  let l=inPeriod($('#r-period').value); if(!$('#r-ex').checked)l=l.filter(e=>!e.sample); return l;
+}
+function periodLabel(p){return p==='all'?'All reflections':`Last ${p} days`;}
+function renderReports(){
+  const hasReal=S.entries.some(e=>!e.sample), cb=$('#r-ex');
+  if(!cb.dataset.touched)cb.checked=!hasReal;
+  const l=reportEntries();
+  $('#r-preview').textContent=l.length?`The report will include ${l.length} reflection${l.length>1?'s':''} (${periodLabel($('#r-period').value).toLowerCase()}).`:'No reflections match these choices yet. Add one, or tick "Include example entries".';
+  $('#s-target').value=S.settings.target; $('#s-limit').value=S.settings.dailyLimit; $('#s-cur').value=S.settings.currency;
+  const ex=S.entries.filter(e=>e.sample).length;
+  $('#data-note').textContent=`${S.entries.length} reflections stored in this browser${ex?`, including ${ex} example${ex>1?'s':''}`:''}. Download a backup before clearing browser data or switching devices.`;
+}
+async function saveFile(filename,data){
+  try{
+    const type=filename.endsWith('.pdf')?'application/pdf':filename.endsWith('.json')?'application/json':'text/csv';
+    const blob=data instanceof Blob?data:new Blob([data],{type:type+';charset=utf-8'});
+    const url=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+    toast('Downloaded '+filename);
+  }catch(e){ toast('Could not save the file.'); }
+}
+function csvCell(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}
+function toCSV(list){
+  const head=['date','area','layer','title','what_happened','feelings_response','scholar',...METRICS.map(m=>m.k),'behavior_score','mirror_pct','screen_minutes','unplanned_spend','next_step','example'];
+  const rows=list.map(e=>[e.date,DOM[e.domain].n,e.layer,e.title,e.story,e.feel,(SCHOLARS[e.scholar]||{}).n,...METRICS.map(m=>e.m[m.k]),score(e),mirrorPct(e),e.digital,e.spend,e.action,e.sample?'yes':'no'].map(csvCell).join(','));
+  return [head.join(','),...rows].join('\n');
+}
+async function runPdf(list,opt,filename){
+  if(!list.length){toast('Nothing to include yet. Add a reflection first.');return;}
+  if(!(window.jspdf&&window.jspdf.jsPDF)){toast('The PDF tool did not load. Check your connection and reload.');return;}
+  try{ const blob=buildPdf(list,opt); await saveFile(filename,blob); }
+  catch(e){ console.error(e); toast('Could not build the PDF.'); }
+}
+function reportPdf(){
+  const p=$('#r-period').value; const l=reportEntries();
+  runPdf(l,{detail:$('#r-detail').value,label:periodLabel(p)},`muhasabah-report-${todayStr()}.pdf`);
+}
+
+/* ---------- PDF ---------- */
+const pc=s=>String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[‘’ʻʼʿʾ]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,'-').replace(/™/g,'(TM)').replace(/…/g,'...').replace(/·/g,'-').replace(/[^\x09\x0A\x0D\x20-\x7E]/g,'');
+function buildPdf(list,opt){
+  const doc=new window.jspdf.jsPDF({unit:'pt',format:'a4'});
+  const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),M=48,CW=W-2*M;
+  const C={green:[23,53,39],brown:[107,68,38],gold:[168,128,31],ink:[43,29,18],soft:[102,82,63],line:[201,196,179],pale:[233,231,219],good:[47,107,63],mid:[143,90,12],low:[155,58,42],white:[244,243,236]};
+  const tc=s=>s>=80?C.good:s>=60?C.mid:C.low;
+  let y=0;
+  const full=opt.detail==='full', tg=S.settings.target;
+  const ensure=h=>{ if(y+h>H-58){doc.addPage();y=M;} };
+  const font=(st,sz,col)=>{doc.setFont('helvetica',st);doc.setFontSize(sz);doc.setTextColor(...col);};
+  const para=(s,sz,col,st,lead,x,w)=>{ x=x==null?M:x; w=w==null?CW:w; font(st||'normal',sz,col); const lines=doc.splitTextToSize(pc(s),w); lines.forEach(ln=>{ensure(lead);font(st||'normal',sz,col);doc.text(ln,x,y);y+=lead;}); };
+  const h2=t=>{ ensure(50); y+=12; font('bold',14,C.brown); doc.text(pc(t),M,y); doc.setDrawColor(...C.gold); doc.setLineWidth(1.6); doc.line(M,y+5,M+36,y+5); y+=24; };
+  const bar=(label,v,max,text,target)=>{
+    ensure(20); font('normal',9.5,C.ink); doc.text(pc(label),M,y);
+    const bx=M+150,bw=CW-150-48; doc.setFillColor(...C.pale); doc.setDrawColor(...C.line); doc.setLineWidth(.5); doc.rect(bx,y-8,bw,9,'FD');
+    if(v!=null){ doc.setFillColor(...C.green); doc.rect(bx,y-8,Math.max(1,bw*Math.min(1,v/max)),9,'F'); }
+    if(target!=null){ doc.setDrawColor(...C.gold); doc.setLineWidth(1.4); doc.line(bx+bw*target/max,y-11,bx+bw*target/max,y+4); }
+    font('bold',9.5,C.ink); doc.text(pc(text),W-M,y,{align:'right'}); y+=19;
+  };
+
+  /* cover band */
+  doc.setFillColor(...C.green); doc.rect(0,0,W,128,'F'); doc.setFillColor(...C.gold); doc.rect(0,128,W,3,'F');
+  font('normal',9,[185,198,184]); doc.text('In the name of Allah, the Most Gracious, the Most Merciful',M,38);
+  font('bold',28,C.white); doc.text('Muhasabah Mirror',M,76);
+  font('normal',11,[233,226,210]); doc.text(opt.single?'Single reflection':'Self-accounting report beside the scholars of Ahlus Sunnah',M,98);
+  font('normal',9.5,[185,198,184]); doc.text(pc(`${opt.label}  |  ${list.length} reflection${list.length>1?'s':''}  |  Generated ${fmtD(todayStr())}`),M,116);
+  y=162;
+
+  const sorted=list.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const scores=list.map(score), mp=list.map(mirrorPct).filter(v=>v!=null);
+  if(!opt.single){
+    const stats=[[String(list.length),'Reflections'],[String(Math.round(avg(scores))),'Avg behavior score'],[mp.length?Math.round(avg(mp))+'%':'-','Mirror alignment'],[String(Math.round(list.reduce((a,e)=>a+(+e.digital||0),0))),'Screen minutes logged']];
+    stats.forEach((s,i)=>{ const x=M+i*(CW/4); font('bold',24,C.green); doc.text(pc(s[0]),x,y+4); font('normal',8.5,C.soft); doc.text(pc(s[1].toUpperCase()),x,y+18); });
+    y+=44;
+    h2('Behavior across twelve areas of life');
+    domainAvgs(list).forEach(x=>bar(x.d.n+(x.n?`  (${x.n})`:''),x.v,100,x.v==null?'-':String(Math.round(x.v)),tg*10));
+    font('italic',8.5,C.soft); doc.text(pc(`Gold marker = your target (${tg*10}). Areas with "-" have no reflections in this period.`),M,y); y+=14;
+    h2('Creed to Commerce (TM): where conviction meets conduct');
+    layerAvgs(list).forEach(x=>bar(x.l.n+(x.n?`  (${x.n})`:''),x.v,100,x.v==null?'-':String(Math.round(x.v)),tg*10));
+    h2('Five measures of behavior (out of 10)');
+    metricAvgs(list).forEach(x=>bar(x.m.n+' ('+x.m.ar+')',x.v,10,x.v==null?'-':x.v.toFixed(1),tg));
+    const mins=list.reduce((a,e)=>a+(+e.digital||0),0), spend=list.reduce((a,e)=>a+(+e.spend||0),0);
+    h2('Distraction and materialism check');
+    para(`Screen time logged: ${mins} minutes. Unplanned spending logged: ${S.settings.currency}${Math.round(spend).toLocaleString()}. Compare these with the daily goal of ${S.settings.dailyLimit} minutes you set, and ask whether the time and money went where your creed would send them.`,10,C.ink,'normal',14);
+    const da=domainAvgs(list).filter(x=>x.v!=null).sort((a,b)=>b.v-a.v);
+    if(da.length){
+      h2('Strengths and focus');
+      para(`Strongest area: ${da[0].d.n} (${Math.round(da[0].v)}). Area to strengthen: ${da[da.length-1].d.n} (${Math.round(da[da.length-1].v)}).`,10,C.ink,'bold',14);
+      const w=da[da.length-1].d, l=w.lenses[0];
+      para(`${SCHOLARS[l.s].n}: ${l.t}`,10,C.ink,'normal',14); y+=4;
+      para('Ask yourself: '+w.prompt,10,C.soft,'italic',14);
+    }
+  }
+
+  h2(opt.single?'Reflection':'Reflections');
+  sorted.forEach(e=>{
+    const d=DOM[e.domain]||DOMAINS[0], s=score(e), t=tone(s), sc=SCHOLARS[e.scholar], mpv=mirrorPct(e);
+    ensure(96);
+    doc.setDrawColor(...C.line); doc.setLineWidth(.6); doc.line(M,y-4,W-M,y-4); y+=10;
+    font('bold',9,C.brown); doc.text(pc(`${fmtD(e.date)}  |  ${d.n}  |  ${(LAYERS.find(l=>l.id===e.layer)||{}).n||''}${e.sample?'  |  EXAMPLE':''}`),M,y);
+    font('bold',11,tc(s)); doc.text(pc(`${s}  ${t.l}`),W-M,y,{align:'right'}); y+=16;
+    para(e.title,12.5,C.ink,'bold',16);
+    if(full&&e.story){y+=2;para(e.story,10,C.ink,'normal',13.5);}
+    if(full&&e.feel){y+=2;para(e.feel,10,C.soft,'italic',13.5);}
+    y+=3; para(METRICS.map(m=>`${m.n} ${e.m[m.k]}`).join('   |   '),9,C.soft,'bold',13);
+    if(sc){ para(`Mirror: ${sc.n}${mpv!=null?`  -  ${mpv}% aligned`:''}${e.digital?`   |   ${e.digital} min on screens`:''}${e.spend?`   |   ${S.settings.currency}${e.spend} unplanned`:''}`,9,C.soft,'normal',13); }
+    if(full&&Array.isArray(e.checks)&&e.checks.every(c=>c!=null)){ d.checks.forEach((c,i)=>para(`- ${c}  [${CHECK_LABELS[e.checks[i]]}]`,8.8,C.soft,'normal',12,M+8,CW-8)); }
+    if(e.action){y+=2;para('Next step: '+e.action,10,C.green,'bold',13.5);}
+    y+=10;
+  });
+
+  if(!opt.single){
+    ensure(110); h2('A reminder on method');
+    para('This report reflects your own ratings. It is a tool for muhasabah (self-accounting), not a judgment of your standing with Allah and not a fatwa. The scholar lenses are short summaries of well-known teaching and reported conduct. Return to the original works, and ask a qualified teacher about any religious ruling.',9.5,C.soft,'normal',13.5);
+  }
+  const n=doc.getNumberOfPages();
+  for(let p=1;p<=n;p++){
+    doc.setPage(p); doc.setDrawColor(...C.line); doc.setLineWidth(.6); doc.line(M,H-40,W-M,H-40);
+    font('normal',8,C.soft); doc.text('Creed-to-Commerce (TM)  |  The Balanced Middle Path Academy, LLC (BMPA)',M,H-26); doc.text(`Page ${p} of ${n}`,W-M,H-26,{align:'right'});
+  }
+  return doc.output('blob');
+}
+
+/* ---------- BACKUP ---------- */
+function importFile(file){
+  const r=new FileReader();
+  r.onload=()=>{ try{
+    const o=JSON.parse(r.result); if(!o||!Array.isArray(o.entries))throw new Error('bad');
+    const have=new Set(S.entries.map(e=>e.id));
+    const incoming=o.entries.filter(e=>e&&e.id&&e.date&&DOM[e.domain]&&e.m&&!have.has(e.id)).map(e=>Object.assign({story:'',feel:'',action:'',digital:0,spend:0,checks:[null,null,null],layer:DOM[e.domain].layer,scholar:DOM[e.domain].lenses[0].s,title:'Untitled'},e));
+    mutate(()=>{ S.entries=S.entries.concat(incoming); if(o.settings)S.settings=Object.assign(S.settings,o.settings); },`Imported ${incoming.length} reflection${incoming.length===1?'':'s'}`);
+  }catch(e){ toast('That file is not a Muhasabah Mirror backup.'); } };
+  r.readAsText(file);
+}
+let armedErase=false, eraseTimer=null;
+
+/* ---------- RENDER ALL + EVENTS ---------- */
+function renderAll(){
+  $('#d-undo').disabled=!undoStack.length; $('#d-redo').disabled=!redoStack.length; $('#d-edit').disabled=!S.entries.length;
+  $('#cur-lab').textContent='('+S.settings.currency+')';
+  if(tab==='dash')renderDash(); else if(tab==='journal')renderJournal(); else if(tab==='mirror')renderMirror(); else if(tab==='reports')renderReports();
+}
+function bind(){
+  $$('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+  $$('#period-seg button').forEach(b=>b.addEventListener('click',()=>{period=b.dataset.period==='all'?'all':+b.dataset.period;$$('#period-seg button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));renderDash();}));
+  $('#view-dash').addEventListener('click',ev=>{const n=ev.target.closest('[data-new]');if(n){startNew(n.dataset.new);return;}const m=ev.target.closest('[data-mirror]');if(m){mirrorMode='domain';mirrorSel=m.dataset.mirror;setTab('mirror');}});
+  $('#f-domain').addEventListener('change',onDomainChange);
+  $('#f-scholar').addEventListener('change',()=>renderMirrorBox($('#f-scholar').value));
+  $('#sliders').addEventListener('input',liveScore);
+  $('#entry-form').addEventListener('submit',saveForm);
+  $('#btn-reset').addEventListener('click',()=>resetForm());
+  $('#btn-cancel-edit').addEventListener('click',()=>{resetForm();setTab('journal');});
+  ['#j-q','#j-domain','#j-layer','#j-sort'].forEach(s=>$(s).addEventListener('input',renderJournal));
+  $('#j-list').addEventListener('click',journalAction);
+  $('#mirror-mode').addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;mirrorMode=b.dataset.mode;mirrorSel=mirrorMode==='domain'?'worship':'nawawi';renderMirror();});
+  $('#mirror-chips').addEventListener('click',ev=>{const b=ev.target.closest('[data-sel]');if(!b)return;mirrorSel=b.dataset.sel;renderMirror();});
+  $('#mirror-body').addEventListener('click',ev=>{const n=ev.target.closest('[data-new]');if(n)startNew(n.dataset.new);});
+  $('#r-period').addEventListener('change',renderReports); $('#r-ex').addEventListener('change',()=>{$('#r-ex').dataset.touched='1';renderReports();});
+  $('#btn-pdf').addEventListener('click',reportPdf); $('#d-pdf').addEventListener('click',()=>{ setTab('reports'); reportPdf(); });
+  $('#btn-csv').addEventListener('click',()=>{const l=reportEntries();if(!l.length){toast('Nothing to export yet.');return;}saveFile(`muhasabah-journal-${todayStr()}.csv`,toCSV(l));});
+  $('#btn-json').addEventListener('click',()=>saveFile(`muhasabah-backup-${todayStr()}.json`,JSON.stringify({app:'muhasabah-mirror',version:1,exported:new Date().toISOString(),settings:S.settings,entries:S.entries},null,2)));
+  $('#imp-file').addEventListener('change',ev=>{const f=ev.target.files[0];if(f)importFile(f);ev.target.value='';});
+  $('#btn-clear-ex').addEventListener('click',()=>{const n=S.entries.filter(e=>e.sample).length;if(!n){toast('There are no example entries left.');return;}mutate(()=>{S.entries=S.entries.filter(e=>!e.sample);},`Cleared ${n} example entr${n>1?'ies':'y'}`);});
+  $('#btn-erase').addEventListener('click',ev=>{
+    const b=ev.currentTarget;
+    if(!armedErase){armedErase=true;b.textContent='Tap again to erase everything';b.classList.add('armed');clearTimeout(eraseTimer);eraseTimer=setTimeout(()=>{armedErase=false;b.textContent='Erase everything';b.classList.remove('armed');},4000);return;}
+    armedErase=false;b.textContent='Erase everything';b.classList.remove('armed');mutate(()=>{S.entries=[];},'Journal erased');
+  });
+  const num=(id,key,min,max)=>$(id).addEventListener('change',()=>{let v=+$(id).value;if(!isFinite(v))v=S.settings[key];S.settings[key]=Math.min(max,Math.max(min,v));persist();renderAll();$(id).value=S.settings[key];});
+  num('#s-target','target',1,10); num('#s-limit','dailyLimit',0,1440);
+  $('#s-cur').addEventListener('change',()=>{S.settings.currency=$('#s-cur').value.trim()||'$';persist();renderAll();});
+  $('#d-new').addEventListener('click',()=>startNew());
+  $('#d-edit').addEventListener('click',()=>{const l=S.entries.slice().sort((a,b)=>b.date.localeCompare(a.date));if(l[0])editEntry(l[0].id);});
+  $('#d-undo').addEventListener('click',undo); $('#d-redo').addEventListener('click',redo);
+}
+
+initState(); initForm(); bind(); resetForm(); setTab('dash'); renderAll();
+
+</script>
+
+</body>
+</html>
